@@ -5,11 +5,13 @@ from collections import deque
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torchsummary import summary
 
 # %%
 class DQN(nn.Module):
-    def __init__(self, input_shape, num_actions):
+    def __init__(self, input_shape, num_actions, seed):
         super(DQN, self).__init__()
+        self.seed = torch.manual_seed(seed)
         self.conv1 = nn.Conv2d(input_shape[0], 6, kernel_size=3, stride=3)
         self.pool1 = nn.MaxPool2d(kernel_size=2)
         self.conv2 = nn.Conv2d(6, 12, kernel_size=4)
@@ -28,7 +30,9 @@ class DQN(nn.Module):
 
 # %%
 class Agent:
-    def __init__(self, action_space, frame_stack_num, memory_size, gamma, epsilon, epsilon_min, epsilon_decay, learning_rate):
+    def __init__(self, action_space, frame_stack_num, memory_size, gamma, epsilon, epsilon_min, epsilon_decay, learning_rate, tau, seed):
+        self.seed = seed
+        random.seed(seed)
         self.action_space = action_space
         self.frame_stack_num = frame_stack_num
         self.memory = deque(maxlen=memory_size)
@@ -42,13 +46,18 @@ class Agent:
         self.target_model = self.build_model().to(self.device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.loss_fn = nn.MSELoss()
+        self.tau = tau
         self.update_target_model()
 
     def build_model(self):
-        return DQN(input_shape=(self.frame_stack_num, 96, 96), num_actions=self.action_space.n)
+        return DQN(input_shape=(self.frame_stack_num, 96, 96), num_actions=self.action_space.n, seed=self.seed)
 
     def update_target_model(self):
-        self.target_model.load_state_dict(self.model.state_dict())
+        policy_net_state_dict = self.model.state_dict()
+        target_net_state_dict = self.target_model.state_dict()
+        for key in policy_net_state_dict:
+            target_net_state_dict[key] = policy_net_state_dict[key] * self.tau + target_net_state_dict[key] * (1 - self.tau)
+        self.target_model.load_state_dict(target_net_state_dict)
 
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -63,7 +72,7 @@ class Agent:
             action_index = random.randrange(self.action_space.n)
         return action_index
 
-    def replay(self, batch_size):
+    def train(self, batch_size):
         if len(self.memory) < batch_size:
             return
         minibatch = random.sample(self.memory, batch_size)
@@ -91,6 +100,8 @@ class Agent:
 
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+        
+        return loss
 
     def load(self, name):
         self.model.load_state_dict(torch.load(name, map_location=self.device))
