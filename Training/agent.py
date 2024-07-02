@@ -5,7 +5,6 @@ from collections import deque
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchsummary import summary
 
 # %%
 class DQN(nn.Module):
@@ -30,7 +29,7 @@ class DQN(nn.Module):
 
 # %%
 class Agent:
-    def __init__(self, action_space, frame_stack_num, memory_size, gamma, epsilon, epsilon_min, epsilon_decay, learning_rate, tau, seed):
+    def __init__(self, action_space, frame_stack_num, memory_size, gamma, epsilon, epsilon_min, epsilon_decay, learning_rate, seed):
         self.seed = seed
         random.seed(seed)
         self.action_space = action_space
@@ -44,20 +43,17 @@ class Agent:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = self.build_model().to(self.device)
         self.target_model = self.build_model().to(self.device)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
-        self.loss_fn = nn.MSELoss()
-        self.tau = tau
+        #self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.optimizer = optim.RMSprop(self.model.parameters(), lr=self.learning_rate)
+        #self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.SmoothL1Loss()  # Huber Loss
         self.update_target_model()
 
     def build_model(self):
         return DQN(input_shape=(self.frame_stack_num, 96, 96), num_actions=self.action_space.n, seed=self.seed)
 
     def update_target_model(self):
-        policy_net_state_dict = self.model.state_dict()
-        target_net_state_dict = self.target_model.state_dict()
-        for key in policy_net_state_dict:
-            target_net_state_dict[key] = policy_net_state_dict[key] * self.tau + target_net_state_dict[key] * (1 - self.tau)
-        self.target_model.load_state_dict(target_net_state_dict)
+        self.target_model.load_state_dict(self.model.state_dict())
 
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
