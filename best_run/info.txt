@@ -1,0 +1,1 @@
+Zu diesem Zeitpunkt wurden noch keine festen Seeds festgelegt, weshalb das Ergebnis (das Video) beim erneuten ausführen des Models ein anderes Ergebnis liefert.

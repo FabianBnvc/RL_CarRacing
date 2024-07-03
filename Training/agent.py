@@ -58,15 +58,22 @@ class Agent:
     def memorize(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
-    def act(self, state):
-        if np.random.rand() > self.epsilon:
+    def act(self, state, testing=False):
+        if not testing:
+            if np.random.rand() > self.epsilon:
+                state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+                with torch.no_grad():
+                    act_values = self.model(state)
+                action_index = torch.argmax(act_values[0]).item()
+            else:
+                action_index = random.randrange(self.action_space.n)
+            return action_index
+        else:
             state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             with torch.no_grad():
                 act_values = self.model(state)
             action_index = torch.argmax(act_values[0]).item()
-        else:
-            action_index = random.randrange(self.action_space.n)
-        return action_index
+            return action_index
 
     def train(self, batch_size):
         if len(self.memory) < batch_size:
@@ -104,6 +111,6 @@ class Agent:
         self.update_target_model()
 
     def save(self, name):
-        torch.save(self.target_model.state_dict(), name)
+        torch.save(self.model.state_dict(), name)
 
 
