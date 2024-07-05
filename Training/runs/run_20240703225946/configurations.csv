@@ -1,0 +1,14 @@
+Parameter,Value
+seed,77.0
+episodes,2000.0
+frame_stack_num,4.0
+memory_size,10000.0
+gamma,0.99
+epsilon,1.0
+epsilon_min,0.01
+epsilon_decay,0.995
+learning_rate,0.0005
+batch_size,64.0
+update_every_n,2.0
+negative_reward_counter_n,0.0
+gas_reward_factor,1.5
